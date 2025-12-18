@@ -1,13 +1,13 @@
-# -------------------------
+# =========================
 # Local env / secrets
-# -------------------------
+# =========================
 .env
 .env.*
 !.env.example
 
-# -------------------------
+# =========================
 # Python
-# -------------------------
+# =========================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,33 +17,39 @@ __pycache__/
 dist/
 build/
 
+# =========================
 # Virtual environments
+# =========================
 .venv/
 venv/
 ENV/
 env/
 
-# -------------------------
+# =========================
 # OS / editor
-# -------------------------
+# =========================
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# -------------------------
+# =========================
 # Data artifacts (DO NOT COMMIT)
-# -------------------------
-# Raw PDFs (big)
+# =========================
+
+# Raw PDFs (large files)
 data/raw/
 data/raw_pdfs/
 **/*.pdf
 
-# Extracted text outputs
+# Extracted / processed text
 data/processed_text/
 data/processed/
 data/text/
 data/extracted/
+
+# Generated chunks
+data/chunks/
 
 # Vector / embedding indices
 data/index/
@@ -52,6 +58,8 @@ data/chroma/
 data/faiss/
 data/vectorstore/
 
+# =========================
 # Logs
+# =========================
 *.log
 logs/
