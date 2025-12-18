@@ -1,4 +1,57 @@
-.venv/
-__pycache__/
+# -------------------------
+# Local env / secrets
+# -------------------------
 .env
-*.pyc
+.env.*
+!.env.example
+
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# -------------------------
+# OS / editor
+# -------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# -------------------------
+# Data artifacts (DO NOT COMMIT)
+# -------------------------
+# Raw PDFs (big)
+data/raw/
+data/raw_pdfs/
+**/*.pdf
+
+# Extracted text outputs
+data/processed_text/
+data/processed/
+data/text/
+data/extracted/
+
+# Vector / embedding indices
+data/index/
+data/indices/
+data/chroma/
+data/faiss/
+data/vectorstore/
+
+# Logs
+*.log
+logs/
