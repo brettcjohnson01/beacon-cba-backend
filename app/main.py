@@ -15,7 +15,6 @@ SOURCES_CSV_PATH = os.getenv("SOURCES_CSV_PATH", "data/metadata/sources.csv")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 MAX_QUESTION_CHARS = int(os.getenv("MAX_QUESTION_CHARS", "4000"))
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 app = FastAPI()
 
 
@@ -66,7 +65,6 @@ def load_documents() -> List[DocumentMetadata]:
     rows = _read_csv_as_dicts(DOCS_CSV_PATH)
     docs: List[DocumentMetadata] = []
     for r in rows:
-        # Ensure doc_id exists; skip malformed rows
         if not r.get("doc_id"):
             continue
         docs.append(DocumentMetadata(**r))
@@ -104,6 +102,12 @@ def _truthy_str(v: Optional[str]) -> Optional[bool]:
     return None
 
 
+def _get_openai_client() -> OpenAI:
+    # Uses OPENAI_API_KEY from environment (loaded via load_dotenv()).
+    # Creating it lazily avoids startup failures if env isn't set yet.
+    return OpenAI()
+
+
 # ---- Routes ----
 @app.get("/")
 def health():
@@ -116,13 +120,20 @@ def ask(req: AskRequest):
     if not q:
         raise HTTPException(status_code=400, detail="question is required")
     if len(q) > MAX_QUESTION_CHARS:
-        raise HTTPException(status_code=400, detail=f"question too long (max {MAX_QUESTION_CHARS} chars)")
+        raise HTTPException(
+            status_code=400,
+            detail=f"question too long (max {MAX_QUESTION_CHARS} chars)",
+        )
 
     try:
+        client = _get_openai_client()
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "You help communities understand and draft Community Benefits Agreements (CBAs)."},
+                {
+                    "role": "system",
+                    "content": "You help communities understand and draft Community Benefits Agreements (CBAs).",
+                },
                 {"role": "user", "content": q},
             ],
         )
@@ -131,13 +142,41 @@ def ask(req: AskRequest):
         raise HTTPException(status_code=502, detail=f"OpenAI request failed: {str(e)}")
 
 
+@app.get("/search")
+def search_endpoint(
+    query: str = Query(..., min_length=1, description="Semantic search query"),
+    top_k: int = Query(5, ge=1, le=50, description="Number of results to return"),
+):
+    """
+    Semantic retrieval over the FAISS index built from local chunks.
+    """
+    try:
+        from app.retrieval.search import search as vector_search
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Retrieval module import failed: {str(e)}",
+        )
+
+    try:
+        results = vector_search(query=query, top_k=top_k)
+        return {"query": query, "top_k": top_k, "results": results}
+    except FileNotFoundError as e:
+        # Typically missing data/index/faiss.index or metadata.jsonl
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
 @app.get("/documents", response_model=List[DocumentMetadata])
 def list_documents(
     agreement_type: Optional[str] = None,
     project_type: Optional[str] = None,
     location_state: Optional[str] = None,
     year_signed: Optional[str] = None,
-    public_ok: Optional[bool] = Query(default=True, description="Defaults to true; set false to include non-public docs"),
+    public_ok: Optional[bool] = Query(
+        default=True, description="Defaults to true; set false to include non-public docs"
+    ),
 ):
     docs = load_documents()
     out: List[DocumentMetadata] = []
@@ -152,7 +191,6 @@ def list_documents(
         if not _matches(d.year_signed, year_signed):
             continue
 
-        # public_ok logic: default to only public docs
         doc_public = _truthy_str(d.public_ok)
         if public_ok is True and doc_public is not True:
             continue
